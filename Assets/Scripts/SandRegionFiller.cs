@@ -7,9 +7,13 @@ using System.Collections.Generic;
 public class SandRegionFiller : MonoBehaviour
 {
     [Header("Sand Settings")]
-    public float spawnRate = 3000f;      // grains per second
-    public float simulationSpeed = 1f;   // simulation multiplier
-    public float colorVariation = 0.1f;
+    public float spawnRate = 500f;       // grains per second
+    public float simulationSpeed = 0.5f; // simulation multiplier
+    public float colorVariation = 0.1f;  // color variation
+    public float maxFrameTime = 16f;     // max milliseconds per frame (ms)
+    
+    [Header("Performance")]
+    public int pixelUnit = 1;            // group N x N pixels into a single unit (e.g., 4 = 4x4 pixels = 1 unit)
 
     private SpriteRegionEditorTool regionTool;
     private Texture2D runtimeTexture;
@@ -27,6 +31,8 @@ public class SandRegionFiller : MonoBehaviour
 
     private float spawnTimer = 0f;
     private Vector2Int spawnPoint;
+    private int sandCount = 0;
+    private List<Vector2Int> activeSandParticles = new List<Vector2Int>();
 
     void Start()
     {
@@ -59,8 +65,12 @@ public class SandRegionFiller : MonoBehaviour
 
         if (isSimulating)
         {
-            SimulateSand();
+            float startTime = Time.realtimeSinceStartup;
+            
             TrySpawnSand();
+            SimulateSand();
+            
+            // Apply texture updates asynchronously to prevent frame drops
             runtimeTexture.Apply();
         }
     }
@@ -81,18 +91,40 @@ public class SandRegionFiller : MonoBehaviour
 
     void SetupRegion(SpriteRegionEditorTool.Region region)
     {
-        sandGrid = new bool[width, height];
-        regionMask = new bool[width, height];
-        filledGrid = new bool[width, height];
+        // Ensure pixelUnit is at least 1
+        int unit = Mathf.Max(1, pixelUnit);
+        
+        int unitWidth = (width + unit - 1) / unit;
+        int unitHeight = (height + unit - 1) / unit;
+        
+        sandGrid = new bool[unitWidth, unitHeight];
+        regionMask = new bool[unitWidth, unitHeight];
+        filledGrid = new bool[unitWidth, unitHeight];
+        activeSandParticles.Clear();
+        sandCount = 0;
+        spawnTimer = 0f;
 
+        // Convert region pixels to unit coordinates
+        HashSet<Vector2Int> unitPixels = new HashSet<Vector2Int>();
         foreach (var p in region.pixels)
-            regionMask[p.x, p.y] = true;
+        {
+            int ux = p.x / unit;
+            int uy = p.y / unit;
+            unitPixels.Add(new Vector2Int(ux, uy));
+        }
 
-        // Find top center spawn point
+        // Mark region mask with unit coordinates
+        foreach (var p in unitPixels)
+        {
+            if (p.x >= 0 && p.x < unitWidth && p.y >= 0 && p.y < unitHeight)
+                regionMask[p.x, p.y] = true;
+        }
+
+        // Find top center spawn point in unit coordinates
         int maxY = int.MinValue;
         float sumX = 0f;
 
-        foreach (var p in region.pixels)
+        foreach (var p in unitPixels)
         {
             if (p.y > maxY)
                 maxY = p.y;
@@ -100,8 +132,10 @@ public class SandRegionFiller : MonoBehaviour
             sumX += p.x;
         }
 
-        int centerX = Mathf.RoundToInt(sumX / region.pixels.Count);
+        int centerX = Mathf.RoundToInt(sumX / unitPixels.Count);
         spawnPoint = new Vector2Int(centerX, maxY);
+        
+        Debug.Log($"Region setup with unit size {unit}. Grid: {unitWidth}x{unitHeight} units. Spawn point: {spawnPoint}");
     }
 
     void TrySpawnSand()
@@ -124,13 +158,18 @@ public class SandRegionFiller : MonoBehaviour
 
     void SimulateSand()
     {
-        for (int y = 1; y < height; y++)
+        // Process only active sand particles instead of checking entire grid
+        for (int i = activeSandParticles.Count - 1; i >= 0; i--)
         {
-            for (int x = 0; x < width; x++)
+            Vector2Int pos = activeSandParticles[i];
+            if (sandGrid[pos.x, pos.y])
             {
-                if (!sandGrid[x, y]) continue;
-
-                TryMoveSand(x, y);
+                TryMoveSand(pos.x, pos.y);
+            }
+            else
+            {
+                // Remove settled sand particles from active list
+                activeSandParticles.RemoveAt(i);
             }
         }
     }
@@ -178,31 +217,54 @@ public class SandRegionFiller : MonoBehaviour
 
     void MoveSand(int fromX, int fromY, int toX, int toY)
     {
+        int unit = Mathf.Max(1, pixelUnit);
+        
         sandGrid[fromX, fromY] = false;
         sandGrid[toX, toY] = true;
 
         Color filledColor = GetVariedColor(regionTool.regions[currentRegionIndex].color);
 
-        // Mark both pixels as filled and color them
+        // Mark both units as filled
         filledGrid[fromX, fromY] = true;
         filledGrid[toX, toY] = true;
 
-        pixels[fromY * width + fromX] = filledColor;
-        pixels[toY * width + toX] = filledColor;
+        // Fill all pixels in the unit blocks
+        FillUnitBlock(fromX, fromY, filledColor, unit);
+        FillUnitBlock(toX, toY, filledColor, unit);
+    }
 
-        runtimeTexture.SetPixel(fromX, fromY, filledColor);
-        runtimeTexture.SetPixel(toX, toY, filledColor);
+    void FillUnitBlock(int unitX, int unitY, Color color, int unit)
+    {
+        int startX = unitX * unit;
+        int startY = unitY * unit;
+
+        for (int dy = 0; dy < unit && startY + dy < height; dy++)
+        {
+            for (int dx = 0; dx < unit && startX + dx < width; dx++)
+            {
+                int pixelX = startX + dx;
+                int pixelY = startY + dy;
+                int pixelIndex = pixelY * width + pixelX;
+
+                pixels[pixelIndex] = color;
+                runtimeTexture.SetPixel(pixelX, pixelY, color);
+            }
+        }
     }
 
     void PlaceSand(int x, int y)
     {
+        int unit = Mathf.Max(1, pixelUnit);
+        
         sandGrid[x, y] = true;
         filledGrid[x, y] = true;
+        activeSandParticles.Add(new Vector2Int(x, y));
+        sandCount++;
         
         Color c = GetVariedColor(regionTool.regions[currentRegionIndex].color);
 
-        pixels[y * width + x] = c;
-        runtimeTexture.SetPixel(x, y, c);
+        // Fill all pixels in the unit block
+        FillUnitBlock(x, y, c, unit);
     }
 
     Color GetVariedColor(Color baseColor)

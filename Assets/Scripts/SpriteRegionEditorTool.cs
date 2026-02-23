@@ -33,6 +33,28 @@ public class SpriteRegionEditorTool : MonoBehaviour
     private int height;
 
     private float whiteThreshold = 0.9f;
+    private List<GameObject> regionObjects = new List<GameObject>();
+
+    public void ClearRegionHierarchy()
+    {
+        // Remove old region objects from hierarchy
+        for (int i = regionObjects.Count - 1; i >= 0; i--)
+        {
+            if (regionObjects[i] != null)
+            {
+                #if UNITY_EDITOR
+                UnityEditor.EditorApplication.delayCall += () =>
+                {
+                    if (regionObjects[i] != null)
+                        DestroyImmediate(regionObjects[i]);
+                };
+                #else
+                Destroy(regionObjects[i]);
+                #endif
+            }
+        }
+        regionObjects.Clear();
+    }
 
     public void DetectRegions()
     {
@@ -42,6 +64,9 @@ public class SpriteRegionEditorTool : MonoBehaviour
             return;
         }
 
+        // Clear existing region GameObjects from hierarchy
+        ClearRegionHierarchy();
+        
         // Clear existing regions
         int previousRegionCount = regions.Count;
         regions.Clear();
@@ -64,12 +89,29 @@ public class SpriteRegionEditorTool : MonoBehaviour
                     region.color = Random.ColorHSV();
                     region.regionName = $"Region {regions.Count + 1}";
                     regions.Add(region);
+                    
+                    // Create GameObject for this region
+                    CreateRegionObject(region, regions.Count - 1);
                 }
             }
         }
 
         Debug.Log($"Detected {regions.Count} regions (previously had {previousRegionCount}).");
         GeneratePreview();
+    }
+
+    void CreateRegionObject(Region region, int index)
+    {
+        GameObject regionObj = new GameObject($"Region_{index} ({region.PixelCount} pixels)");
+        regionObj.transform.SetParent(transform);
+        regionObj.transform.localPosition = Vector3.zero;
+
+        // Add component to store region data reference
+        RegionData regionData = regionObj.AddComponent<RegionData>();
+        regionData.region = region;
+        regionData.regionIndex = index;
+
+        regionObjects.Add(regionObj);
     }
 
     void FloodFill(int startX, int startY, Region region)
@@ -161,4 +203,10 @@ public class SpriteRegionEditorTool : MonoBehaviour
             new Vector2Int(p.x, p.y - 1)
         };
     }
+}
+
+public class RegionData : MonoBehaviour
+{
+    public SpriteRegionEditorTool.Region region;
+    public int regionIndex;
 }
