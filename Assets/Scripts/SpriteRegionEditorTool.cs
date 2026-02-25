@@ -5,6 +5,9 @@ using System.Collections.Generic;
 public class SpriteRegionEditorTool : MonoBehaviour
 {
     public Sprite sourceSprite;
+    
+    [Header("Color Library")]
+    public ColorMaterialLibrary colorLibrary;
 
     [System.Serializable]
     public class Region
@@ -17,6 +20,9 @@ public class SpriteRegionEditorTool : MonoBehaviour
         
         [SerializeField]
         public Color color = Color.white;
+        
+        [SerializeField]
+        public string colorName = ""; // Reference to ColorMaterialLibrary
         
         public int PixelCount => pixels.Count;
     }

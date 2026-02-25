@@ -15,12 +15,31 @@ public class SandPouringFillEffect : MonoBehaviour
     [SerializeField] private bool fillOnStart = true;
     [SerializeField] private AnimationCurve fillCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
     
+    [Header("Progressive Fill Mode")]
+    [SerializeField] private bool useProgressiveFill = false; // Enable for detector-based filling
+    
+    [Header("Region Locking")]
+    [SerializeField] private bool useRegionLocking = false; // Enable region unlock system
+    [SerializeField] private int initialUnlockedRegions = 3; // Number of regions unlocked at start
+    [SerializeField] private Color lockedRegionColor = new Color(0.3f, 0.3f, 0.3f, 1f); // Grey color for locked regions
+    [SerializeField] private float unlockedRegionLightness = 0.7f; // Absolute lightness value for all unlocked regions (0-1)
+    
     private SpriteRegionEditorTool regionTool;
     private Texture2D fillTexture;
     private SpriteRenderer spriteRenderer;
     private int width;
     private int height;
     private bool isFilling = false;
+    
+    // Progressive fill data
+    private Dictionary<int, List<PixelFillData>> regionPixelData = new Dictionary<int, List<PixelFillData>>();
+    private Dictionary<int, float> regionFillProgress = new Dictionary<int, float>();
+    private Dictionary<int, float> regionTargetProgress = new Dictionary<int, float>(); // Target progress for smooth animation
+    private Dictionary<int, Coroutine> regionFillCoroutines = new Dictionary<int, Coroutine>();
+    
+    // Region locking data
+    private HashSet<int> unlockedRegions = new HashSet<int>();
+    private int regionsCompleted = 0;
     
     private class PixelFillData
     {
@@ -50,7 +69,11 @@ public class SandPouringFillEffect : MonoBehaviour
             Debug.Log($"Sprite dimensions: {width}x{height}");
             Debug.Log($"Regions detected: {regionTool.regions?.Count ?? 0}");
             
-            if (fillOnStart)
+            if (useProgressiveFill)
+            {
+                InitializeProgressiveFill();
+            }
+            else if (fillOnStart)
             {
                 StartFillAnimation();
             }
@@ -59,6 +82,246 @@ public class SandPouringFillEffect : MonoBehaviour
         {
             Debug.LogWarning("No source sprite assigned to SpriteRegionEditorTool!");
         }
+    }
+    
+    void InitializeProgressiveFill()
+    {
+        // Create texture with region base colors visible from start
+        fillTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        fillTexture.filterMode = FilterMode.Point;
+        fillTexture.wrapMode = TextureWrapMode.Clamp;
+        
+        Color[] pixels = new Color[width * height];
+        
+        // Initialize with black background
+        for (int i = 0; i < pixels.Length; i++)
+            pixels[i] = Color.black;
+        
+        // Initialize region locking
+        if (useRegionLocking)
+        {
+            // Unlock first N regions
+            for (int i = 0; i < Mathf.Min(initialUnlockedRegions, regionTool.regions.Count); i++)
+            {
+                unlockedRegions.Add(i);
+            }
+            Debug.Log($"Unlocked first {unlockedRegions.Count} regions");
+        }
+        
+        // Fill all regions with their base colors (or locked color)
+        for (int regionIndex = 0; regionIndex < regionTool.regions.Count; regionIndex++)
+        {
+            var region = regionTool.regions[regionIndex];
+            bool isUnlocked = !useRegionLocking || unlockedRegions.Contains(regionIndex);
+            
+            Color regionColor;
+            if (isUnlocked)
+            {
+                // Unlocked regions show lighter version of their color
+                regionColor = LightenColor(region.color, unlockedRegionLightness);
+            }
+            else
+            {
+                // Locked regions show grey
+                regionColor = lockedRegionColor;
+            }
+            
+            foreach (var pixel in region.pixels)
+            {
+                int pixelIndex = pixel.y * width + pixel.x;
+                if (pixelIndex >= 0 && pixelIndex < pixels.Length)
+                {
+                    pixels[pixelIndex] = regionColor;
+                }
+            }
+        }
+        
+        // Prepare pixel data for each region (for progressive filling with variations)
+        for (int regionIndex = 0; regionIndex < regionTool.regions.Count; regionIndex++)
+        {
+            var region = regionTool.regions[regionIndex];
+            Vector2 bottomCenter = CalculateRegionBottomCenter(region);
+            
+            List<PixelFillData> regionPixels = new List<PixelFillData>();
+            
+            foreach (var pixel in region.pixels)
+            {
+                // Calculate weighted distance for steeper slope
+                float dx = Mathf.Abs(pixel.x - bottomCenter.x);
+                float dy = Mathf.Abs(pixel.y - bottomCenter.y);
+                float weightedDistance = dx + (dy / slopesteepness);
+                
+                PixelFillData fillData = new PixelFillData
+                {
+                    position = pixel,
+                    distanceFromCenter = weightedDistance,
+                    targetColor = GetVariedColor(region.color), // Pre-generate varied colors
+                    regionIndex = regionIndex
+                };
+                regionPixels.Add(fillData);
+            }
+            
+            // Sort by distance (closest first)
+            regionPixels.Sort((a, b) => a.distanceFromCenter.CompareTo(b.distanceFromCenter));
+            regionPixelData[regionIndex] = regionPixels;
+            regionFillProgress[regionIndex] = 0f;
+            regionTargetProgress[regionIndex] = 0f;
+        }
+        
+        fillTexture.SetPixels(pixels);
+        fillTexture.Apply();
+        
+        // Update sprite renderer
+        spriteRenderer.sprite = Sprite.Create(
+            fillTexture,
+            new Rect(0, 0, width, height),
+            new Vector2(0.5f, 0.5f),
+            regionTool.sourceSprite.pixelsPerUnit
+        );
+        
+        Debug.Log("Progressive fill initialized with base region colors visible");
+    }
+    
+    public void UpdateRegionFill(int regionId, float targetProgress)
+    {
+        if (!useProgressiveFill)
+        {
+            Debug.LogWarning("Progressive fill is not enabled!");
+            return;
+        }
+        
+        if (!regionPixelData.ContainsKey(regionId))
+        {
+            Debug.LogError($"Region {regionId} not found in pixel data!");
+            return;
+        }
+        
+        // Check if region is locked
+        if (useRegionLocking && !unlockedRegions.Contains(regionId))
+        {
+            Debug.LogWarning($"Region {regionId} is locked! Cannot fill.");
+            return;
+        }
+        
+        targetProgress = Mathf.Clamp01(targetProgress);
+        regionTargetProgress[regionId] = targetProgress;
+        
+        // Stop existing fill coroutine for this region if any
+        if (regionFillCoroutines.ContainsKey(regionId) && regionFillCoroutines[regionId] != null)
+        {
+            StopCoroutine(regionFillCoroutines[regionId]);
+        }
+        
+        // Start smooth fill animation
+        Coroutine fillCoroutine = StartCoroutine(SmoothFillRegion(regionId, targetProgress));
+        regionFillCoroutines[regionId] = fillCoroutine;
+    }
+    
+    public void OnRegionCompleted(int regionId)
+    {
+        if (!useRegionLocking) return;
+        
+        regionsCompleted++;
+        Debug.Log($"<color=yellow>Region {regionId} completed! Total completed: {regionsCompleted}</color>");
+        
+        // Unlock next region
+        int nextRegionToUnlock = initialUnlockedRegions + regionsCompleted - 1;
+        
+        if (nextRegionToUnlock < regionTool.regions.Count && !unlockedRegions.Contains(nextRegionToUnlock))
+        {
+            UnlockRegion(nextRegionToUnlock);
+        }
+    }
+    
+    void UnlockRegion(int regionId)
+    {
+        if (unlockedRegions.Contains(regionId)) return;
+        
+        unlockedRegions.Add(regionId);
+        Debug.Log($"<color=green>Unlocked region {regionId}!</color>");
+        
+        // Reveal the region's lighter color (not full color yet)
+        var region = regionTool.regions[regionId];
+        Color lighterColor = LightenColor(region.color, unlockedRegionLightness);
+        Color[] pixels = fillTexture.GetPixels();
+        
+        foreach (var pixel in region.pixels)
+        {
+            int pixelIndex = pixel.y * width + pixel.x;
+            if (pixelIndex >= 0 && pixelIndex < pixels.Length)
+            {
+                pixels[pixelIndex] = lighterColor;
+            }
+        }
+        
+        fillTexture.SetPixels(pixels);
+        fillTexture.Apply();
+    }
+    
+    Color LightenColor(Color baseColor, float targetLightness)
+    {
+        // Convert to HSV
+        Color.RGBToHSV(baseColor, out float h, out float s, out float v);
+        
+        // Set absolute lightness value (same for all colors)
+        v = targetLightness;
+        
+        // Slightly reduce saturation for a softer look
+        s = Mathf.Clamp01(s * 0.8f);
+        
+        Color lighterColor = Color.HSVToRGB(h, s, v);
+        lighterColor.a = baseColor.a;
+        
+        return lighterColor;
+    }
+    
+    public bool IsRegionUnlocked(int regionId)
+    {
+        if (!useRegionLocking) return true;
+        return unlockedRegions.Contains(regionId);
+    }
+    
+    IEnumerator SmoothFillRegion(int regionId, float targetProgress)
+    {
+        float startProgress = regionFillProgress[regionId];
+        float elapsed = 0f;
+        
+        List<PixelFillData> regionPixels = regionPixelData[regionId];
+        
+        while (elapsed < fillTime)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / fillTime);
+            
+            // Interpolate progress smoothly
+            float currentProgress = Mathf.Lerp(startProgress, targetProgress, fillCurve.Evaluate(t));
+            regionFillProgress[regionId] = currentProgress;
+            
+            // Calculate pixels to fill
+            int pixelsToFill = Mathf.RoundToInt(regionPixels.Count * currentProgress);
+            
+            Color[] pixels = fillTexture.GetPixels();
+            
+            // Fill pixels up to the current progress with varied colors
+            for (int i = 0; i < pixelsToFill && i < regionPixels.Count; i++)
+            {
+                var fillData = regionPixels[i];
+                int pixelIndex = fillData.position.y * width + fillData.position.x;
+                
+                if (pixelIndex >= 0 && pixelIndex < pixels.Length)
+                {
+                    pixels[pixelIndex] = fillData.targetColor;
+                }
+            }
+            
+            fillTexture.SetPixels(pixels);
+            fillTexture.Apply();
+            
+            yield return null;
+        }
+        
+        // Ensure final progress is set
+        regionFillProgress[regionId] = targetProgress;
     }
     
     public void StartFillAnimation()
@@ -160,47 +423,67 @@ public class SandPouringFillEffect : MonoBehaviour
         Debug.Log($"Prepared {allPixels.Count} pixels for sand pouring");
         Debug.Log($"First pixel color: {allPixels[0].targetColor}, Last pixel color: {allPixels[allPixels.Count-1].targetColor}");
         
-        // Calculate pixels per frame based on fill time
-        float totalFrames = fillTime / Time.deltaTime;
-        int pixelsPerFrame = Mathf.Max(1, Mathf.CeilToInt(allPixels.Count / totalFrames));
-        
-        Debug.Log($"Fill time: {fillTime}s, Pixels per frame: {pixelsPerFrame}");
-        
-        // Now pour sand effect with color variations
+        // FPS-independent filling using time-based progress
+        float elapsed = 0f;
         int currentPixelIndex = 0;
-        int frameCount = 0;
         
-        while (currentPixelIndex < allPixels.Count)
+        Debug.Log($"Fill time: {fillTime}s, Total pixels: {allPixels.Count}");
+        
+        // Now pour sand effect with color variations (FPS-independent)
+        while (currentPixelIndex < allPixels.Count && elapsed < fillTime)
         {
-            int endIndex = Mathf.Min(currentPixelIndex + pixelsPerFrame, allPixels.Count);
+            elapsed += Time.deltaTime;
             
-            // Get current pixels array
-            Color[] currentPixels = fillTexture.GetPixels();
+            // Calculate how many pixels should be filled based on elapsed time
+            float progress = Mathf.Clamp01(elapsed / fillTime);
+            int targetPixelIndex = Mathf.RoundToInt(allPixels.Count * progress);
+            int endIndex = Mathf.Min(targetPixelIndex, allPixels.Count);
             
-            // Update pixels with varied colors
-            for (int i = currentPixelIndex; i < endIndex; i++)
+            // Only update pixels if we have new ones to fill
+            if (endIndex > currentPixelIndex)
+            {
+                // Get current pixels array
+                Color[] currentPixels = fillTexture.GetPixels();
+                
+                // Update pixels with varied colors
+                for (int i = currentPixelIndex; i < endIndex; i++)
+                {
+                    var fillData = allPixels[i];
+                    int pixelIndex = fillData.position.y * width + fillData.position.x;
+                    
+                    if (pixelIndex >= 0 && pixelIndex < currentPixels.Length)
+                    {
+                        currentPixels[pixelIndex] = fillData.targetColor;
+                    }
+                }
+                
+                fillTexture.SetPixels(currentPixels);
+                fillTexture.Apply();
+                
+                currentPixelIndex = endIndex;
+            }
+            
+            yield return null;
+        }
+        
+        // Ensure all pixels are filled at the end
+        if (currentPixelIndex < allPixels.Count)
+        {
+            Color[] finalPixels = fillTexture.GetPixels();
+            
+            for (int i = currentPixelIndex; i < allPixels.Count; i++)
             {
                 var fillData = allPixels[i];
                 int pixelIndex = fillData.position.y * width + fillData.position.x;
                 
-                if (pixelIndex >= 0 && pixelIndex < currentPixels.Length)
+                if (pixelIndex >= 0 && pixelIndex < finalPixels.Length)
                 {
-                    currentPixels[pixelIndex] = fillData.targetColor;
+                    finalPixels[pixelIndex] = fillData.targetColor;
                 }
             }
             
-            fillTexture.SetPixels(currentPixels);
+            fillTexture.SetPixels(finalPixels);
             fillTexture.Apply();
-            
-            currentPixelIndex = endIndex;
-            frameCount++;
-            
-            if (frameCount % 30 == 0)
-            {
-                Debug.Log($"Sand pouring progress: {currentPixelIndex}/{allPixels.Count} pixels");
-            }
-            
-            yield return null;
         }
         
         Debug.Log("Sand pouring effect complete!");
@@ -251,16 +534,17 @@ public class SandPouringFillEffect : MonoBehaviour
         // Convert to HSV for better color variation
         Color.RGBToHSV(baseColor, out float h, out float s, out float v);
         
-        // Vary the value (brightness) significantly to create visible lighter/darker shades
-        float variation = Random.Range(-colorVariation, colorVariation);
+        // Vary the value (brightness) to create visible lighter/darker shades
+        // Keep variation closer to original color
+        float variation = Random.Range(-colorVariation * 0.5f, colorVariation * 0.5f);
         v = Mathf.Clamp01(v + variation);
         
-        // Vary saturation for more natural look
-        float satVariation = Random.Range(-colorVariation * 0.5f, colorVariation * 0.5f);
+        // Slightly vary saturation for more natural look (less variation)
+        float satVariation = Random.Range(-colorVariation * 0.2f, colorVariation * 0.2f);
         s = Mathf.Clamp01(s + satVariation);
         
-        // Slightly vary hue for even more variation
-        float hueVariation = Random.Range(-0.02f, 0.02f);
+        // Very slight hue variation to keep color similar
+        float hueVariation = Random.Range(-0.01f, 0.01f);
         h = Mathf.Repeat(h + hueVariation, 1f);
         
         Color result = Color.HSVToRGB(h, s, v);

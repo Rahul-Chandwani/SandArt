@@ -6,9 +6,17 @@ public class SpriteRegionEditorToolEditor : Editor
 {
     public override void OnInspectorGUI()
     {
-        DrawDefaultInspector();
-
         SpriteRegionEditorTool tool = (SpriteRegionEditorTool)target;
+        
+        // Draw sprite and color library fields
+        SerializedProperty sourceSprite = serializedObject.FindProperty("sourceSprite");
+        SerializedProperty colorLibrary = serializedObject.FindProperty("colorLibrary");
+        SerializedProperty regions = serializedObject.FindProperty("regions");
+        
+        EditorGUILayout.PropertyField(sourceSprite);
+        EditorGUILayout.PropertyField(colorLibrary);
+        
+        serializedObject.ApplyModifiedProperties();
 
         GUILayout.Space(10);
 
@@ -21,29 +29,50 @@ public class SpriteRegionEditorToolEditor : Editor
         if (tool.regions != null && tool.regions.Count > 0)
         {
             GUILayout.Space(10);
-            GUILayout.Label("Region Colors", EditorStyles.boldLabel);
-
-            int columns = 4;
-            int rows = Mathf.CeilToInt(tool.regions.Count / (float)columns);
-
+            GUILayout.Label($"Detected Regions: {tool.regions.Count}", EditorStyles.boldLabel);
+            
+            // Get color names from library
+            ColorMaterialLibrary library = tool.colorLibrary;
+            string[] colorNames = library != null ? library.GetAllColorNames() : new string[0];
+            
             EditorGUI.BeginChangeCheck();
-
-            for (int r = 0; r < rows; r++)
+            
+            // Display each region with color picker and dropdown
+            for (int i = 0; i < tool.regions.Count; i++)
             {
+                var region = tool.regions[i];
+                
+                EditorGUILayout.BeginVertical("box");
                 EditorGUILayout.BeginHorizontal();
-
-                for (int c = 0; c < columns; c++)
+                
+                // Region name
+                EditorGUILayout.LabelField($"Region {i}", GUILayout.Width(70));
+                
+                // Color picker
+                region.color = EditorGUILayout.ColorField(region.color, GUILayout.Width(60), GUILayout.Height(30));
+                
+                // Color name dropdown
+                if (library != null && colorNames.Length > 0)
                 {
-                    int index = r * columns + c;
-                    if (index >= tool.regions.Count) break;
-
-                    tool.regions[index].color =
-                        EditorGUILayout.ColorField(tool.regions[index].color,
-                                                   GUILayout.Width(60),
-                                                   GUILayout.Height(40));
+                    int currentIndex = System.Array.IndexOf(colorNames, region.colorName);
+                    if (currentIndex < 0) currentIndex = 0;
+                    
+                    int newIndex = EditorGUILayout.Popup(currentIndex, colorNames, GUILayout.Width(100));
+                    if (newIndex >= 0 && newIndex < colorNames.Length)
+                    {
+                        region.colorName = colorNames[newIndex];
+                    }
                 }
-
+                else
+                {
+                    EditorGUILayout.LabelField("No Color Library", GUILayout.Width(100));
+                }
+                
+                // Pixel count
+                EditorGUILayout.LabelField($"{region.PixelCount} pixels", GUILayout.Width(80));
+                
                 EditorGUILayout.EndHorizontal();
+                EditorGUILayout.EndVertical();
             }
 
             if (EditorGUI.EndChangeCheck())
