@@ -5,7 +5,7 @@ using System.Collections.Generic;
 public class SpriteRegionEditorTool : MonoBehaviour
 {
     public Sprite sourceSprite;
-
+    
     [Header("Color Library")]
     public ColorMaterialLibrary colorLibrary;
 
@@ -14,16 +14,16 @@ public class SpriteRegionEditorTool : MonoBehaviour
     {
         [SerializeField]
         public string regionName = "Region";
-
+        
         [SerializeField]
         public List<Vector2Int> pixels = new List<Vector2Int>();
-
+        
         [SerializeField]
         public Color color = Color.white;
-
+        
         [SerializeField]
         public string colorName = ""; // Reference to ColorMaterialLibrary
-
+        
         public int PixelCount => pixels.Count;
     }
 
@@ -41,76 +41,76 @@ public class SpriteRegionEditorTool : MonoBehaviour
     private float whiteThreshold = 0.9f;
 
     public void DetectRegions()
+{
+    if (sourceSprite == null)
     {
-        if (sourceSprite == null)
+        Debug.LogWarning("No source sprite assigned!");
+        return;
+    }
+    
+    regions.Clear();
+
+    sourceTexture = sourceSprite.texture;
+    width = sourceTexture.width;
+    height = sourceTexture.height;
+
+    sourcePixels = sourceTexture.GetPixels();
+    visited = new bool[width, height];
+
+    for (int x = 0; x < width; x++)
+    {
+        for (int y = 0; y < height; y++)
         {
-            Debug.LogWarning("No source sprite assigned!");
-            return;
-        }
-
-        regions.Clear();
-
-        sourceTexture = sourceSprite.texture;
-        width = sourceTexture.width;
-        height = sourceTexture.height;
-
-        sourcePixels = sourceTexture.GetPixels();
-        visited = new bool[width, height];
-
-        for (int x = 0; x < width; x++)
-        {
-            for (int y = 0; y < height; y++)
+            if (!visited[x, y] && IsWhite(GetPixel(x, y)))
             {
-                if (!visited[x, y] && IsWhite(GetPixel(x, y)))
+                Region region = new Region();
+                FloodFill(x, y, region);
+                
+                // Assign a starting color
+                region.color = Random.ColorHSV();
+                region.regionName = $"Region {regions.Count}";
+
+                // NEW: Sync the dropdown string and the color with the library
+                if (colorLibrary != null && colorLibrary.colorMaterials.Count > 0)
                 {
-                    Region region = new Region();
-                    FloodFill(x, y, region);
-
-                    // Assign a starting color
-                    region.color = Random.ColorHSV();
-                    region.regionName = $"Region {regions.Count}";
-
-                    // NEW: Sync the dropdown string and the color with the library
-                    if (colorLibrary != null && colorLibrary.colorMaterials.Count > 0)
-                    {
-                        region.colorName = GetClosestColorName(region.color);
-                        region.color = colorLibrary.GetColorByName(region.colorName);
-                    }
-
-                    regions.Add(region);
+                    region.colorName = GetClosestColorName(region.color);
+                    region.color = colorLibrary.GetColorByName(region.colorName);
                 }
+
+                regions.Add(region);
             }
         }
-
-        Debug.Log($"Detected {regions.Count} regions.");
-        GeneratePreview();
     }
 
-    // Helper to find the best string match from the library
-    private string GetClosestColorName(Color target)
+    Debug.Log($"Detected {regions.Count} regions.");
+    GeneratePreview();
+}
+
+// Helper to find the best string match from the library
+private string GetClosestColorName(Color target)
+{
+    if (colorLibrary == null || colorLibrary.colorMaterials.Count == 0) return "";
+
+    string bestMatch = colorLibrary.colorMaterials[0].colorName;
+    float minDistance = float.MaxValue;
+
+    foreach (var entry in colorLibrary.colorMaterials)
     {
-        if (colorLibrary == null || colorLibrary.colorMaterials.Count == 0) return "";
+        // Calculate RGB distance
+        float dist = Mathf.Sqrt(
+            Mathf.Pow(target.r - entry.color.r, 2) +
+            Mathf.Pow(target.g - entry.color.g, 2) +
+            Mathf.Pow(target.b - entry.color.b, 2)
+        );
 
-        string bestMatch = colorLibrary.colorMaterials[0].colorName;
-        float minDistance = float.MaxValue;
-
-        foreach (var entry in colorLibrary.colorMaterials)
+        if (dist < minDistance)
         {
-            // Calculate RGB distance
-            float dist = Mathf.Sqrt(
-                Mathf.Pow(target.r - entry.color.r, 2) +
-                Mathf.Pow(target.g - entry.color.g, 2) +
-                Mathf.Pow(target.b - entry.color.b, 2)
-            );
-
-            if (dist < minDistance)
-            {
-                minDistance = dist;
-                bestMatch = entry.colorName;
-            }
+            minDistance = dist;
+            bestMatch = entry.colorName;
         }
-        return bestMatch;
     }
+    return bestMatch;
+}
 
     void FloodFill(int startX, int startY, Region region)
     {
@@ -135,37 +135,15 @@ public class SpriteRegionEditorTool : MonoBehaviour
             }
         }
     }
-    void EnsureSourceData()
-    {
-        if (sourceSprite == null) return;
 
-        if (sourceTexture == null || sourcePixels == null || width == 0)
-        {
-            sourceTexture = sourceSprite.texture;
-            width = sourceTexture.width;
-            height = sourceTexture.height;
-            sourcePixels = sourceTexture.GetPixels();
-        }
-    }
     public void GeneratePreview()
     {
-        EnsureSourceData();
+        if (sourceTexture == null) return;
 
-        if (sourceTexture == null || width == 0 || height == 0)
-            return;
-
-        // Destroy old preview texture to avoid stale references
-        if (previewTexture != null)
-        {
-            DestroyImmediate(previewTexture);
-            previewTexture = null;
-        }
-
-        previewTexture = new Texture2D(width, height, TextureFormat.RGBA32, false);
-        previewTexture.filterMode = FilterMode.Point;
-
+        previewTexture = new Texture2D(width, height);
         Color[] previewPixels = new Color[width * height];
 
+        // Start with black
         for (int i = 0; i < previewPixels.Length; i++)
             previewPixels[i] = Color.black;
 
@@ -173,9 +151,7 @@ public class SpriteRegionEditorTool : MonoBehaviour
         {
             foreach (var p in region.pixels)
             {
-                int index = p.y * width + p.x;
-                if (index >= 0 && index < previewPixels.Length)
-                    previewPixels[index] = region.color;
+                previewPixels[p.y * width + p.x] = region.color;
             }
         }
 
@@ -186,41 +162,16 @@ public class SpriteRegionEditorTool : MonoBehaviour
         if (renderer == null)
             renderer = gameObject.AddComponent<SpriteRenderer>();
 
-        // Destroy old sprite to prevent ghost references
-        if (renderer.sprite != null)
-        {
-            DestroyImmediate(renderer.sprite);
-        }
-
-        renderer.sprite = Sprite.Create(
-            previewTexture,
-            new Rect(0, 0, width, height),
-            new Vector2(0.5f, 0.5f),
-            sourceSprite.pixelsPerUnit
-        );
-
-#if UNITY_EDITOR
-        UnityEditor.EditorUtility.SetDirty(renderer);
-        UnityEditor.SceneView.RepaintAll();
-#endif
+        renderer.sprite = Sprite.Create(previewTexture,
+                                        new Rect(0, 0, width, height),
+                                        new Vector2(0.5f, 0.5f),
+                                        sourceSprite.pixelsPerUnit);
     }
+
+
     void OnValidate()
     {
-        AssignProperColors();
         GeneratePreview();
-    }
-
-    void AssignProperColors()
-    {
-        if (colorLibrary == null) return;
-        foreach (var region in regions)
-        {
-            // Try to find the color in the library
-            if (!string.IsNullOrEmpty(region.colorName))
-            {
-                region.color = colorLibrary.GetColorByName(region.colorName);
-            }
-        }
     }
 
     bool IsWhite(Color c)
