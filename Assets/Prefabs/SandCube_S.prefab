@@ -49,9 +49,6 @@ SpriteRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 0
   m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -150,13 +147,10 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 2901c8517a2bdf34298159fd18ce60b1, type: 2}
+  - {fileID: 2100000, guid: ba326685043895d4ea9e2b916ec64268, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -255,5 +249,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a8bfb07155c85243a04eadf76dbd8ce, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  colorName: 
+  colorName: Brown
   colorLibrary: {fileID: 11400000, guid: 9aaf10cec7560a14689e4a9a63e6eaab, type: 2}

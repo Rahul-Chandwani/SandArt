@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab58bf1126fabfd42bfcbbf01fc82343, type: 3}
+  m_Name: ColorMaterialLibrary
+  m_EditorClassIdentifier: 
+  colorMaterials:
+  - colorName: Brown
+    material: {fileID: 2100000, guid: ba326685043895d4ea9e2b916ec64268, type: 2}
+    color: {r: 0.36078432, g: 0.21176472, b: 0.16470589, a: 1}
+  - colorName: Blue
+    material: {fileID: 2100000, guid: 295abbb70fc450f458cfa2433d12d141, type: 2}
+    color: {r: 0.21960786, g: 0.5686275, b: 0.654902, a: 1}
+  - colorName: Cream
+    material: {fileID: 2100000, guid: 590c0305484d1ff428f507de965d30be, type: 2}
+    color: {r: 1, g: 0.86666673, b: 0.68235296, a: 1}
+  - colorName: Green
+    material: {fileID: 2100000, guid: 7e2112eccfde1fc48b8ba47c0e70d140, type: 2}
+    color: {r: 0.75294125, g: 0.75294125, b: 0.4156863, a: 1}
+  - colorName: Dark Green
+    material: {fileID: 2100000, guid: e5718602cdb0c74468a4c19fa0e1d9d0, type: 2}
+    color: {r: 0.4901961, g: 0.5294118, b: 0.28235295, a: 1}
+  - colorName: Orange
+    material: {fileID: 2100000, guid: 476e2c47af9266e4681cca03853ed9a4, type: 2}
+    color: {r: 0.9686275, g: 0.4666667, b: 0.19607845, a: 1}
+  - colorName: Thick Orange
+    material: {fileID: 2100000, guid: d99fb234303497343bd1b08e77d5202c, type: 2}
+    color: {r: 0.8588236, g: 0.54901963, b: 0.17254902, a: 1}
+  - colorName: Red
+    material: {fileID: 2100000, guid: 2901c8517a2bdf34298159fd18ce60b1, type: 2}
+    color: {r: 0.7830189, g: 0.06278926, b: 0.06278926, a: 1}
+  - colorName: Yellow
+    material: {fileID: 2100000, guid: 0240c2559c1dfa04db8d2baf04ff6ee6, type: 2}
+    color: {r: 1, g: 0.9398438, b: 0, a: 1}
+  - colorName: Grey
+    material: {fileID: 2100000, guid: 6502464c7b9ee5e478d1d6d93a51d5c1, type: 2}
+    color: {r: 0.49056602, g: 0.49056602, b: 0.49056602, a: 1}
+  - colorName: White
+    material: {fileID: 2100000, guid: eea6a16e0e9d25b419f13b6ee7d18942, type: 2}
+    color: {r: 1, g: 1, b: 1, a: 1}
+  - colorName: Cryan
+    material: {fileID: 2100000, guid: d2ab8180ea2b0394c84aab1833e46949, type: 2}
+    color: {r: 0, g: 0.990566, b: 0.9820056, a: 1}
+  - colorName: Violet
+    material: {fileID: 2100000, guid: 883f54baa201b4e4f95ba3a8f69f6d31, type: 2}
+    color: {r: 0.61384964, g: 0, b: 1, a: 1}
+  - colorName: StemGreen
+    material: {fileID: 2100000, guid: f8fdcea2fb996b44bae1d8d153ff672b, type: 2}
+    color: {r: 0.4666667, g: 0.6, b: 0.003921569, a: 1}
+  - colorName: PaleSkin
+    material: {fileID: 2100000, guid: 492e95d893fe37547ab5f559773e169e, type: 2}
+    color: {r: 1, g: 0.98823535, b: 0.85098046, a: 1}
+  - colorName: mattepink
+    material: {fileID: 2100000, guid: 3f784ea576c06ba4b8aa6cd46552b3d0, type: 2}
+    color: {r: 0.955, g: 0.36862996, b: 0.7610824, a: 1}

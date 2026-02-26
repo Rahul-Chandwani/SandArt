@@ -45,6 +45,7 @@ public class SandColorIdentifierEditor : Editor
                     
                     if (GUI.changed)
                     {
+                        identifier.ChangeColor();
                         EditorUtility.SetDirty(identifier);
                     }
                 }

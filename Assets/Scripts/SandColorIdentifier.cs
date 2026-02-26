@@ -23,4 +23,15 @@ public class SandColorIdentifier : MonoBehaviour
     {
         return !string.IsNullOrEmpty(colorName);
     }
+    public void OnValidate()
+    {
+        ChangeColor();
+    }
+
+    public void ChangeColor()
+    {
+        MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
+        meshRenderer.sharedMaterial = ColorMaterialLibrary.Instance.GetMaterialByName(colorName);
+        UnityEditor.EditorUtility.SetDirty(meshRenderer);
+    }
 }

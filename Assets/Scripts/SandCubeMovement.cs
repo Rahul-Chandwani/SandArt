@@ -134,7 +134,8 @@ public class SandCubeMovement : MonoBehaviour
     {
         StartMovement();
     }
-    
+
+   
     // Visualize the movement direction in the editor
     void OnDrawGizmosSelected()
     {
