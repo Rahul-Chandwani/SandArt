@@ -52,3 +52,12 @@ MonoBehaviour:
   - colorName: Violet
     material: {fileID: 2100000, guid: 883f54baa201b4e4f95ba3a8f69f6d31, type: 2}
     color: {r: 0.61384964, g: 0, b: 1, a: 1}
+  - colorName: StemGreen
+    material: {fileID: 2100000, guid: 883f54baa201b4e4f95ba3a8f69f6d31, type: 2}
+    color: {r: 0.4666667, g: 0.6, b: 0.003921569, a: 1}
+  - colorName: PaleSkin
+    material: {fileID: 2100000, guid: 883f54baa201b4e4f95ba3a8f69f6d31, type: 2}
+    color: {r: 1, g: 0.98823535, b: 0.85098046, a: 1}
+  - colorName: mattepink
+    material: {fileID: 2100000, guid: 883f54baa201b4e4f95ba3a8f69f6d31, type: 2}
+    color: {r: 0.955, g: 0.36862996, b: 0.7610824, a: 1}
