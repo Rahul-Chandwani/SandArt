@@ -38,7 +38,7 @@ public class SpriteRegionEditorToolEditor : Editor
             EditorGUI.BeginChangeCheck();
             
             // Display each region with color picker and dropdown
-            for (int i = 0; i < tool.regions.Count; i++)
+            for (int i = tool.regions.Count - 1; i >= 0; i--)
             {
                 var region = tool.regions[i];
                 
@@ -70,6 +70,21 @@ public class SpriteRegionEditorToolEditor : Editor
                 
                 // Pixel count
                 EditorGUILayout.LabelField($"{region.PixelCount} pixels", GUILayout.Width(80));
+                
+                // Remove button
+                GUI.backgroundColor = new Color(1f, 0.5f, 0.5f);
+                if (GUILayout.Button("X", GUILayout.Width(25), GUILayout.Height(30)))
+                {
+                    if (EditorUtility.DisplayDialog("Remove Region", 
+                        $"Are you sure you want to remove Region {i}?", 
+                        "Yes", "No"))
+                    {
+                        tool.regions.RemoveAt(i);
+                        EditorUtility.SetDirty(tool);
+                        tool.GeneratePreview();
+                    }
+                }
+                GUI.backgroundColor = Color.white;
                 
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.EndVertical();

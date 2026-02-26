@@ -261,7 +261,7 @@ public class ConveyorSpline : MonoBehaviour
             // Only set velocities if not already kinematic
             if (!rb.isKinematic)
             {
-                rb.linearVelocity = Vector3.zero;
+                rb.velocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
             }
             rb.isKinematic = true;

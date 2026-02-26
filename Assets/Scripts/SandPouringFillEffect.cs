@@ -258,18 +258,11 @@ public class SandPouringFillEffect : MonoBehaviour
         fillTexture.Apply();
     }
     
-    Color LightenColor(Color baseColor, float targetLightness)
+    Color LightenColor(Color baseColor, float lightnessAmount)
     {
-        // Convert to HSV
-        Color.RGBToHSV(baseColor, out float h, out float s, out float v);
-        
-        // Set absolute lightness value (same for all colors)
-        v = targetLightness;
-        
-        // Slightly reduce saturation for a softer look
-        s = Mathf.Clamp01(s * 0.8f);
-        
-        Color lighterColor = Color.HSVToRGB(h, s, v);
+        // Lerp towards white to make the color lighter while preserving the hue
+        // lightnessAmount: 0 = original color, 1 = white
+        Color lighterColor = Color.Lerp(baseColor, Color.white, lightnessAmount);
         lighterColor.a = baseColor.a;
         
         return lighterColor;
