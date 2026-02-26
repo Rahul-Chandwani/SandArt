@@ -24,13 +24,13 @@ MonoBehaviour:
     color: {r: 1, g: 0.86666673, b: 0.68235296, a: 1}
   - colorName: Green
     material: {fileID: 2100000, guid: 7e2112eccfde1fc48b8ba47c0e70d140, type: 2}
-    color: {r: 0.6367647, g: 0.8301887, b: 0.31719476, a: 1}
+    color: {r: 0.75294125, g: 0.75294125, b: 0.4156863, a: 1}
   - colorName: Dark Green
     material: {fileID: 2100000, guid: e5718602cdb0c74468a4c19fa0e1d9d0, type: 2}
-    color: {r: 0.09411766, g: 0.59607846, b: 0.19215688, a: 1}
+    color: {r: 0.4901961, g: 0.5294118, b: 0.28235295, a: 1}
   - colorName: Orange
     material: {fileID: 2100000, guid: 476e2c47af9266e4681cca03853ed9a4, type: 2}
-    color: {r: 0.7803922, g: 0.3137255, b: 0.3137255, a: 1}
+    color: {r: 0.9686275, g: 0.4666667, b: 0.19607845, a: 1}
   - colorName: Thick Orange
     material: {fileID: 2100000, guid: d99fb234303497343bd1b08e77d5202c, type: 2}
     color: {r: 0.8588236, g: 0.54901963, b: 0.17254902, a: 1}
@@ -39,7 +39,7 @@ MonoBehaviour:
     color: {r: 0.7830189, g: 0.06278926, b: 0.06278926, a: 1}
   - colorName: Yellow
     material: {fileID: 2100000, guid: 0240c2559c1dfa04db8d2baf04ff6ee6, type: 2}
-    color: {r: 0.8196079, g: 0.82745105, b: 0.2784314, a: 1}
+    color: {r: 1, g: 0.9490197, b: 0, a: 1}
   - colorName: Grey
     material: {fileID: 2100000, guid: 6502464c7b9ee5e478d1d6d93a51d5c1, type: 2}
     color: {r: 0.49056602, g: 0.49056602, b: 0.49056602, a: 1}
@@ -51,4 +51,13 @@ MonoBehaviour:
     color: {r: 0, g: 0.990566, b: 0.9820056, a: 1}
   - colorName: Violet
     material: {fileID: 2100000, guid: 883f54baa201b4e4f95ba3a8f69f6d31, type: 2}
-    color: {r: 0.6666667, g: 0.3647059, b: 1, a: 1}
+    color: {r: 0.61384964, g: 0, b: 1, a: 1}
+  - colorName: Pink
+    material: {fileID: 2100000, guid: 446c4397972b58341859f3abd4281ec1, type: 2}
+    color: {r: 1, g: 0.35283017, b: 0.7538773, a: 1}
+  - colorName: Dark Violet
+    material: {fileID: 2100000, guid: 8af3bbec6bbf04444b6a67d6c93148e3, type: 2}
+    color: {r: 0.28273907, g: 0.017522207, b: 0.4037736, a: 1}
+  - colorName: Light Violet
+    material: {fileID: 2100000, guid: 62bfc5a5411f71145988681b4bb3b2cd, type: 2}
+    color: {r: 0.75294125, g: 0.63529414, b: 0.9333334, a: 1}
