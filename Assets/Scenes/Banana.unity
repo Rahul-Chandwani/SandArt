@@ -6208,7 +6208,7 @@ Sprite:
         format: 0
         dimension: 0
       m_DataSize: 80
-      _typelessdata: 0000e0bf3333b33f000000000000e03f3333b3bf000000000000e03f3333b33f000000000000e0bf3333b3bf000000000000000000000000000000000000000000000000000000000000000000000000
+      _typelessdata: 0000e0bf3333b33f000000000000e03f3333b3bf000000000000e03f3333b33f000000000000e0bf3333b3bf00000000000000000000803f0000803f000000000000803f0000803f0000000000000000
     m_Bindpose: []
     textureRect:
       serializedVersion: 2
@@ -6639,7 +6639,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a8bfb07155c85243a04eadf76dbd8ce, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  colorName: mattepink
+  colorName: pink
   colorLibrary: {fileID: 11400000, guid: 9aaf10cec7560a14689e4a9a63e6eaab, type: 2}
 --- !u!54 &1368845638
 Rigidbody:
@@ -6726,7 +6726,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 3f784ea576c06ba4b8aa6cd46552b3d0, type: 2}
+  - {fileID: 2100000, guid: b800b1e7e7d46b844801c398a5172ef7, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -8211,7 +8211,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a8bfb07155c85243a04eadf76dbd8ce, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  colorName: Yellow
+  colorName: pink
   colorLibrary: {fileID: 11400000, guid: 9aaf10cec7560a14689e4a9a63e6eaab, type: 2}
 --- !u!54 &1637026844
 Rigidbody:
@@ -8298,7 +8298,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 0240c2559c1dfa04db8d2baf04ff6ee6, type: 2}
+  - {fileID: 2100000, guid: b800b1e7e7d46b844801c398a5172ef7, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -8354,8 +8354,8 @@ Transform:
   m_GameObject: {fileID: 1640484594}
   serializedVersion: 2
   m_LocalRotation: {x: 0.5639793, y: -0, z: -0, w: 0.82578886}
-  m_LocalPosition: {x: 0.006873222, y: -2.09, z: -0.14}
-  m_LocalScale: {x: 0.21931522, y: 0.33461797, z: 0.8333334}
+  m_LocalPosition: {x: 0.0068732, y: -2.09, z: -0.14}
+  m_LocalScale: {x: 0.26866114, y: 0.33461797, z: 0.8333334}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1755820619}
@@ -100293,7 +100293,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a8bfb07155c85243a04eadf76dbd8ce, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  colorName: Thick Orange
+  colorName: pink
   colorLibrary: {fileID: 11400000, guid: 9aaf10cec7560a14689e4a9a63e6eaab, type: 2}
 --- !u!54 &1712963104
 Rigidbody:
@@ -100380,7 +100380,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: d99fb234303497343bd1b08e77d5202c, type: 2}
+  - {fileID: 2100000, guid: b800b1e7e7d46b844801c398a5172ef7, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -101886,7 +101886,7 @@ MonoBehaviour:
   regionFillSettings:
   - regionId: 0
     colorName: pink
-    piecesNeededToFill: 40
+    piecesNeededToFill: 70
     piecesCollected: 0
     fillProgress: 0
   - regionId: 1
@@ -101896,12 +101896,12 @@ MonoBehaviour:
     fillProgress: 0
   - regionId: 2
     colorName: Yellow
-    piecesNeededToFill: 24
+    piecesNeededToFill: 38
     piecesCollected: 0
     fillProgress: 0
   - regionId: 3
     colorName: Thick Orange
-    piecesNeededToFill: 22
+    piecesNeededToFill: 44
     piecesCollected: 0
     fillProgress: 0
   - regionId: 4
@@ -115172,8 +115172,8 @@ Transform:
   m_GameObject: {fileID: 7418534115465335942}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.00002228, y: 0.01, z: -0}
-  m_LocalScale: {x: 0.99415, y: 0.81694293, z: 1}
+  m_LocalPosition: {x: -0.001, y: 0.01, z: -0}
+  m_LocalScale: {x: 1.2259539, y: 0.81694293, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6821742633111032464}
@@ -115687,8 +115687,8 @@ Transform:
   m_GameObject: {fileID: 8423245365166215176}
   serializedVersion: 2
   m_LocalRotation: {x: -0.1935215, y: -0, z: -0, w: 0.9810961}
-  m_LocalPosition: {x: -0.000000013252022, y: 0.1, z: 0.45}
-  m_LocalScale: {x: 1, y: 0.72263, z: 1}
+  m_LocalPosition: {x: -0.0061366, y: 0.1, z: 0.45}
+  m_LocalScale: {x: 1.225, y: 0.72263, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6821742633111032464}
