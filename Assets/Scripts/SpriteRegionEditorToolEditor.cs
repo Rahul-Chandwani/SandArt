@@ -74,6 +74,13 @@ public class SpriteRegionEditorToolEditor : Editor
                         tool.GeneratePreview();
                     }
                 }
+                else
+                {
+                    EditorGUILayout.LabelField("No Color Library", GUILayout.Width(100));
+                }
+
+                // PIXEL COUNT
+                EditorGUILayout.LabelField($"{region.PixelCount} pixels", GUILayout.Width(80));
 
                 // REMOVE BUTTON
                 GUI.backgroundColor = new Color(1f, 0.5f, 0.5f);

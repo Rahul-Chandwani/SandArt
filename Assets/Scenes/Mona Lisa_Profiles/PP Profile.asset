@@ -1353,7 +1353,7 @@ MonoBehaviour:
     value: 1
   zBias:
     overrideState: 1
-    value: 0.000073
+    value: 0.000124
   directLightingStrength:
     overrideState: 0
     value: 0
@@ -1406,7 +1406,7 @@ MonoBehaviour:
     value: {x: 0.5, y: 0.5}
   intensity:
     overrideState: 1
-    value: 0.425
+    value: 0.354
   smoothness:
     overrideState: 1
     value: 0.2
