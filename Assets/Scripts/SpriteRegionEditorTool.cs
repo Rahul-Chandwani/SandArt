@@ -389,6 +389,12 @@ private string GetClosestColorName(Color target)
     
     void Start()
     {
+        // Don't generate preview at runtime if SandPouringFillEffect is handling it
+        if (GetComponent<SandPouringFillEffect>() != null)
+        {
+            return;
+        }
+        
         // Initialize at runtime to maintain colors when game starts
         if (sourceSprite != null)
         {

@@ -21,6 +21,7 @@ public class SandPouringFillEffect : MonoBehaviour
     [Header("Region Locking")]
     [SerializeField] private bool useRegionLocking = false; // Enable region unlock system
     [SerializeField] private int initialUnlockedRegions = 3; // Number of regions unlocked at start
+    [SerializeField] private List<int> unlockSequence = new List<int>(); // Custom unlock sequence (region indices)
     [SerializeField] private Color lockedRegionColor = new Color(0.3f, 0.3f, 0.3f, 1f); // Grey color for locked regions
     [SerializeField] private float unlockedRegionLightness = 0.7f; // Absolute lightness value for all unlocked regions (0-1)
     
@@ -100,12 +101,30 @@ public class SandPouringFillEffect : MonoBehaviour
         // Initialize region locking
         if (useRegionLocking)
         {
-            // Unlock first N regions
-            for (int i = 0; i < Mathf.Min(initialUnlockedRegions, regionTool.regions.Count); i++)
+            // Use custom unlock sequence if provided, otherwise use default sequential order
+            if (unlockSequence != null && unlockSequence.Count > 0)
             {
-                unlockedRegions.Add(i);
+                // Unlock regions based on custom sequence
+                int regionsToUnlock = Mathf.Min(initialUnlockedRegions, unlockSequence.Count);
+                for (int i = 0; i < regionsToUnlock; i++)
+                {
+                    int regionIndex = unlockSequence[i];
+                    if (regionIndex >= 0 && regionIndex < regionTool.regions.Count)
+                    {
+                        unlockedRegions.Add(regionIndex);
+                    }
+                }
+                Debug.Log($"Unlocked first {unlockedRegions.Count} regions using custom sequence");
             }
-            Debug.Log($"Unlocked first {unlockedRegions.Count} regions");
+            else
+            {
+                // Default: unlock first N regions sequentially
+                for (int i = 0; i < Mathf.Min(initialUnlockedRegions, regionTool.regions.Count); i++)
+                {
+                    unlockedRegions.Add(i);
+                }
+                Debug.Log($"Unlocked first {unlockedRegions.Count} regions (sequential)");
+            }
         }
         
         // Fill all regions with their base colors (or locked color)
@@ -224,12 +243,27 @@ public class SandPouringFillEffect : MonoBehaviour
         regionsCompleted++;
         Debug.Log($"<color=yellow>Region {regionId} completed! Total completed: {regionsCompleted}</color>");
         
-        // Unlock next region
-        int nextRegionToUnlock = initialUnlockedRegions + regionsCompleted - 1;
+        // Unlock next region based on sequence
+        int nextRegionIndex = -1;
         
-        if (nextRegionToUnlock < regionTool.regions.Count && !unlockedRegions.Contains(nextRegionToUnlock))
+        if (unlockSequence != null && unlockSequence.Count > 0)
         {
-            UnlockRegion(nextRegionToUnlock);
+            // Use custom unlock sequence
+            int nextSequenceIndex = initialUnlockedRegions + regionsCompleted - 1;
+            if (nextSequenceIndex < unlockSequence.Count)
+            {
+                nextRegionIndex = unlockSequence[nextSequenceIndex];
+            }
+        }
+        else
+        {
+            // Default sequential unlock
+            nextRegionIndex = initialUnlockedRegions + regionsCompleted - 1;
+        }
+        
+        if (nextRegionIndex >= 0 && nextRegionIndex < regionTool.regions.Count && !unlockedRegions.Contains(nextRegionIndex))
+        {
+            UnlockRegion(nextRegionIndex);
         }
     }
     
@@ -264,6 +298,8 @@ public class SandPouringFillEffect : MonoBehaviour
         // lightnessAmount: 0 = original color, 1 = white
         Color lighterColor = Color.Lerp(baseColor, Color.white, lightnessAmount);
         lighterColor.a = baseColor.a;
+        
+        Debug.Log($"LightenColor called: base={baseColor}, amount={lightnessAmount}, result={lighterColor}");
         
         return lighterColor;
     }
