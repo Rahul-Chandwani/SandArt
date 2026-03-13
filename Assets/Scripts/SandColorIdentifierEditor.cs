@@ -31,23 +31,24 @@ public class SandColorIdentifierEditor : Editor
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("Select Color:", EditorStyles.boldLabel);
                 
+                EditorGUI.BeginChangeCheck();
                 int newIndex = EditorGUILayout.Popup("Color Name", currentIndex, colorNames);
+                if (EditorGUI.EndChangeCheck() && newIndex >= 0 && newIndex < colorNames.Length)
+                {
+                    Undo.RecordObject(identifier, "Change Color");
+                    identifier.colorName = colorNames[newIndex];
+                    identifier.ChangeColor();
+                    EditorUtility.SetDirty(identifier);
+                }
+                
                 if (newIndex >= 0 && newIndex < colorNames.Length)
                 {
-                    identifier.colorName = colorNames[newIndex];
-                    
                     // Show color preview
                     Color previewColor = library.GetColorByName(colorNames[newIndex]);
                     EditorGUILayout.Space();
                     EditorGUILayout.LabelField("Color Preview:");
                     Rect rect = GUILayoutUtility.GetRect(200, 40);
                     EditorGUI.DrawRect(rect, previewColor);
-                    
-                    if (GUI.changed)
-                    {
-                        identifier.ChangeColor();
-                        EditorUtility.SetDirty(identifier);
-                    }
                 }
             }
             else

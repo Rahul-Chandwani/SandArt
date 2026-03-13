@@ -593,4 +593,59 @@ public class SandPouringFillEffect : MonoBehaviour
         
         StartFillAnimation();
     }
+    
+    // Public methods for checking actual sand fill progress
+    public float GetRegionFillProgress(int regionIndex)
+    {
+        if (regionFillProgress.ContainsKey(regionIndex))
+        {
+            return regionFillProgress[regionIndex];
+        }
+        return 0f;
+    }
+    
+    public bool IsRegionCompletelyFilled(int regionIndex)
+    {
+        return GetRegionFillProgress(regionIndex) >= 1f;
+    }
+    
+    public int GetTotalRegionsCount()
+    {
+        return regionTool != null ? regionTool.regions.Count : 0;
+    }
+    
+    public int GetCompletelyFilledRegionsCount()
+    {
+        int count = 0;
+        for (int i = 0; i < GetTotalRegionsCount(); i++)
+        {
+            if (IsRegionCompletelyFilled(i))
+            {
+                count++;
+            }
+        }
+        return count;
+    }
+    
+    public bool IsAllRegionsCompletelyFilled()
+    {
+        int totalRegions = GetTotalRegionsCount();
+        if (totalRegions == 0) return false;
+        
+        return GetCompletelyFilledRegionsCount() >= totalRegions;
+    }
+    
+    public float GetOverallFillProgress()
+    {
+        int totalRegions = GetTotalRegionsCount();
+        if (totalRegions == 0) return 0f;
+        
+        float totalProgress = 0f;
+        for (int i = 0; i < totalRegions; i++)
+        {
+            totalProgress += GetRegionFillProgress(i);
+        }
+        
+        return totalProgress / totalRegions;
+    }
 }

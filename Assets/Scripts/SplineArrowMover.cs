@@ -72,11 +72,18 @@ public class SplineArrowMover : MonoBehaviour
         position += Vector3.up * heightOffset;
         arrows[index].position = position;
 
-        // Align with spline direction
+        // Align with spline direction - arrows should face the direction of movement
         if (tangent != Vector3.zero)
         {
+            // Normalize the tangent to ensure consistent direction
+            tangent = tangent.normalized;
+            
+            // Create rotation that faces the direction of spline movement
             Quaternion rotation = Quaternion.LookRotation(tangent, Vector3.up);
+            
+            // Apply any additional rotation offset
             rotation *= Quaternion.Euler(rotationOffset);
+            
             arrows[index].rotation = rotation;
         }
     }

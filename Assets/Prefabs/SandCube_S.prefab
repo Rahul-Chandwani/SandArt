@@ -186,6 +186,64 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 5
   moveDistance: 10
+  conveyorLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  cubeLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  collisionCheckDistance: 0
+  returnAnimationSpeed: 3
+  returnCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  blinkCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  redOutlineColor: {r: 1, g: 0, b: 0, a: 1}
+  blinkDuration: 0.25
   arrowTransform: {fileID: 9161197611328364543}
   arrowAxis: 1
   constrainToZAxis: 0
@@ -208,8 +266,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1.4709321, y: 1.0166935, z: 1.0280459}
-  m_Center: {x: -0.7330925, y: 0.007913411, z: -0.015456174}
+  m_Size: {x: 1.6286731, y: 1.0166935, z: 1.0280459}
+  m_Center: {x: -0.6972428, y: 0.007913411, z: -0.0154562}
 --- !u!54 &8586423879655796001
 Rigidbody:
   m_ObjectHideFlags: 0

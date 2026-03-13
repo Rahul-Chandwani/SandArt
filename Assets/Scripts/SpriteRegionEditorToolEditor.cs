@@ -41,6 +41,29 @@ public class SpriteRegionEditorToolEditor : Editor
             tool.DetectRegions();
             EditorUtility.SetDirty(tool);
         }
+        
+        // Add button to detect border regions separately
+        if (tool.detectBorderRegions)
+        {
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button("Detect Border Regions"))
+            {
+                Undo.RecordObject(tool, "Detect Border Regions");
+                tool.ForceDetectBorderRegions();
+                EditorUtility.SetDirty(tool);
+            }
+            
+            if (GUILayout.Button("Save Border Colors"))
+            {
+                tool.SaveBorderColors();
+            }
+            
+            if (GUILayout.Button("Force Border Colors"))
+            {
+                tool.ForceBorderColors();
+            }
+            EditorGUILayout.EndHorizontal();
+        }
 
         if (tool.regions != null && tool.regions.Count > 0)
         {
@@ -137,8 +160,14 @@ public class SpriteRegionEditorToolEditor : Editor
                 {
                     Undo.RecordObject(tool, "Change Border Color");
                     borderRegion.color = newColor;
+                    
+                    // Force Unity to save the changes
                     EditorUtility.SetDirty(tool);
-                    tool.GeneratePreview();
+                    UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
+                    
+                    tool.GeneratePreview(); // Immediately update preview
+                    
+                    Debug.Log($"Changed border {i} color to {newColor}");
                 }
                 
                 // Pixel count

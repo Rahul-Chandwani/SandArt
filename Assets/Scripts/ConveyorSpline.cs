@@ -12,7 +12,10 @@ public class ConveyorSpline : MonoBehaviour
     [Header("Sand Piece Settings")]
     [SerializeField] private GameObject sandPiecePrefab;
     [SerializeField] private float sandPieceHeightOffset = 0.5f;
+    [SerializeField] private Vector3 sandPieceRotationOffset = Vector3.zero; // Rotation offset for sand pieces (X, Y, Z degrees)
     [SerializeField] private float distanceBetweenPieces = 1f; // Distance between spawned pieces in world units
+    [SerializeField] private float sandPieceRadius = 0.5f; // Collision radius for sand pieces
+    [SerializeField] private bool enableCollisionDetection = true; // Enable/disable collision system
     
     [Header("Particle Effects")]
     [SerializeField] private GameObject spawnParticleEffectPrefab; // Particle effect to enable when sand pieces are spawning
@@ -26,8 +29,8 @@ public class ConveyorSpline : MonoBehaviour
     private float cachedSplineLength = -1f;
     private float[] arcLengthTable;
     private int arcLengthSamples = 200;
-    private float globalSplineDistance = 0f; // Global distance tracker for spawning
-    private int lastSpawnFrame = -1; // Track last frame a piece was spawned
+    private float globalSplineTime = 0f; // Global time tracker for spawning (FPS independent)
+    private Dictionary<int, float> cubeLastSpawnTime = new Dictionary<int, float>(); // Track last spawn time per cube
     
     void Start()
     {
@@ -95,30 +98,31 @@ public class ConveyorSpline : MonoBehaviour
     
     void Update()
     {
-        // Increment global distance tracker (FPS-independent)
-        globalSplineDistance += moveSpeed * Time.deltaTime;
+        // Increment global time tracker (FPS-independent)
+        globalSplineTime += Time.deltaTime;
         
-        // STRICT: Only allow ONE piece spawn per frame across ALL cubes
-        bool hasSpawnedThisFrame = false;
+        // Calculate spawn interval in seconds
+        float spawnIntervalTime = distanceBetweenPieces / moveSpeed;
         
         // Check each grinding cube and spawn if needed
         for (int i = grindingCubes.Count - 1; i >= 0; i--)
         {
             if (grindingCubes[i].cubeTransform == null)
             {
-                // Cleanup: Disable and destroy particle effect
+                // Cleanup: Stop particle coroutine and destroy particle effect
+                if (grindingCubes[i].particleCoroutine != null)
+                {
+                    StopCoroutine(grindingCubes[i].particleCoroutine);
+                }
                 if (grindingCubes[i].particleEffect != null)
                 {
                     grindingCubes[i].particleEffect.SetActive(false);
                     Destroy(grindingCubes[i].particleEffect);
                 }
+                
+                // Remove from spawn time tracking
+                cubeLastSpawnTime.Remove(i);
                 grindingCubes.RemoveAt(i);
-                continue;
-            }
-            
-            // Skip if we already spawned this frame
-            if (hasSpawnedThisFrame)
-            {
                 continue;
             }
             
@@ -127,55 +131,63 @@ public class ConveyorSpline : MonoBehaviour
             // Check if this cube can and should spawn
             if (cube.grinder != null && cube.grinder.CanSpawnPiece())
             {
-                // Check if we've reached the next spawn distance for this cube
-                if (globalSplineDistance >= cube.nextSpawnAtDistance)
+                bool canActuallySpawn = true;
+                
+                // Check if spline is full
+                if (IsSplineFull())
                 {
-                    // DOUBLE CHECK: Ensure we haven't spawned this frame
-                    if (lastSpawnFrame == Time.frameCount)
-                    {
-                        Debug.LogWarning($"<color=red>BLOCKED: Attempted to spawn twice in frame {Time.frameCount}</color>");
-                        break;
-                    }
-                    
+                    canActuallySpawn = false;
+                }
+                
+                // Check if there's space at spawn position
+                if (canActuallySpawn && !CanSpawnNewPiece(cube.splinePosition))
+                {
+                    canActuallySpawn = false;
+                }
+                
+                // Only proceed with spawning if we can actually spawn
+                if (!canActuallySpawn)
+                {
+                    continue;
+                }
+                
+                // Check if enough time has passed since last spawn for this cube
+                float lastSpawnTime = cubeLastSpawnTime.ContainsKey(i) ? cubeLastSpawnTime[i] : 0f;
+                float timeSinceLastSpawn = globalSplineTime - lastSpawnTime;
+                
+                if (timeSinceLastSpawn >= spawnIntervalTime)
+                {
                     // Spawn the piece with the cube's material and color name
                     SpawnSandPieceOnSpline(cube.splinePosition, cube.cubeTransform.name, cube.cubeMaterial, cube.colorName);
                     cube.grinder.IncrementPiecesSpawned();
                     
-                    // Schedule next spawn at EXACT interval
-                    cube.nextSpawnAtDistance += distanceBetweenPieces;
+                    // Trigger particle burst for 1 second
+                    TriggerParticleBurst(cube);
                     
-                    // Mark that we spawned
-                    hasSpawnedThisFrame = true;
-                    lastSpawnFrame = Time.frameCount;
+                    // Update last spawn time for this cube
+                    cubeLastSpawnTime[i] = globalSplineTime;
                     
-                    Debug.Log($"<color=green>[Frame {Time.frameCount}] Spawned piece {cube.grinder.GetPiecesSpawned()}/{cube.grinder.totalSandPieces} from {cube.cubeTransform.name}. Next at {cube.nextSpawnAtDistance:F3}</color>");
-                    
-                    // BREAK immediately after spawning
-                    break;
+                    Debug.Log($"<color=green>[Time {globalSplineTime:F2}] Spawned piece {cube.grinder.GetPiecesSpawned()}/{cube.grinder.totalSandPieces} from {cube.cubeTransform.name}. Next in {spawnIntervalTime:F2}s</color>");
                 }
             }
             else
             {
-                // Cube finished spawning - disable particle effect
+                // Cube finished spawning - no more particle bursts needed
+                if (cube.particleCoroutine != null)
+                {
+                    StopCoroutine(cube.particleCoroutine);
+                    cube.particleCoroutine = null;
+                }
                 if (cube.particleEffect != null && cube.particleEffect.activeSelf)
                 {
                     cube.particleEffect.SetActive(false);
-                    Debug.Log($"<color=grey>Disabled particle effect for {cube.cubeTransform.name} (finished spawning)</color>");
+                    Debug.Log($"<color=grey>Stopped particle effects for {cube.cubeTransform.name} (finished spawning)</color>");
                 }
             }
         }
         
-        // Update sand pieces on the spline
-        for (int i = activeSandPieces.Count - 1; i >= 0; i--)
-        {
-            if (activeSandPieces[i].pieceTransform == null)
-            {
-                activeSandPieces.RemoveAt(i);
-                continue;
-            }
-            
-            UpdateSandPieceOnSpline(activeSandPieces[i]);
-        }
+        // Update sand pieces on the spline with collision detection
+        UpdateSandPiecesWithCollision();
     }
     
     void SpawnFromCube(GrindingCube cube)
@@ -194,6 +206,13 @@ public class ConveyorSpline : MonoBehaviour
         if (meshRenderers.Length > 0)
         {
             cubeMaterial = meshRenderers[0].sharedMaterial;
+            
+            // Disable outline on the cube when it gets attached
+            foreach (MeshRenderer renderer in meshRenderers)
+            {
+                DisableOutline(renderer.material);
+            }
+            Debug.Log($"<color=cyan>Disabled outline on cube {cubeTransform.name}</color>");
         }
         
         // Get the cube's color name
@@ -215,13 +234,13 @@ public class ConveyorSpline : MonoBehaviour
             grinder.StartGrinding(collisionPoint, collisionNormal);
         }
         
-        // Create particle effect at grinding position
+        // Create particle effect at grinding position (initially disabled)
         GameObject particleEffect = null;
         if (spawnParticleEffectPrefab != null)
         {
             Vector3 particlePos = GetPointOnSplineRaw(closestT) + Vector3.up * sandPieceHeightOffset;
             particleEffect = Instantiate(spawnParticleEffectPrefab, particlePos, Quaternion.identity);
-            particleEffect.SetActive(true);
+            particleEffect.SetActive(false); // Start disabled - will burst when spawning
             
             // Set particle color to match cube
             if (cubeMaterial != null)
@@ -229,23 +248,27 @@ public class ConveyorSpline : MonoBehaviour
                 SetParticleEffectColor(particleEffect, cubeMaterial.color);
             }
             
-            Debug.Log($"<color=magenta>Enabled particle effect for {cubeTransform.name} at grinding position</color>");
+            Debug.Log($"<color=magenta>Created particle effect for {cubeTransform.name} (ready for bursts)</color>");
         }
         
-        // Schedule first spawn immediately (at current global distance)
+        // Schedule first spawn immediately (at current global time)
         GrindingCube grindingCube = new GrindingCube
         {
             cubeTransform = cubeTransform,
             grinder = grinder,
             splinePosition = closestT,
-            nextSpawnAtDistance = globalSplineDistance, // Spawn first piece immediately
             fixedPosition = collisionPoint, // Store the fixed position
             cubeMaterial = cubeMaterial, // Store material for spawned pieces
             colorName = colorName, // Store color name for spawned pieces
-            particleEffect = particleEffect // Store particle effect reference
+            particleEffect = particleEffect, // Store particle effect reference
+            particleCoroutine = null // Initialize coroutine reference
         };
         
         grindingCubes.Add(grindingCube);
+        
+        // Initialize spawn time tracking for this cube
+        int cubeIndex = grindingCubes.Count - 1;
+        cubeLastSpawnTime[cubeIndex] = globalSplineTime; // Allow immediate first spawn
         
         // Disable the cube's movement script
         SandCubeMovement movement = cubeTransform.GetComponent<SandCubeMovement>();
@@ -267,7 +290,7 @@ public class ConveyorSpline : MonoBehaviour
             rb.isKinematic = true;
         }
         
-        Debug.Log($"<color=yellow>Cube {cubeTransform.name} attached. Will spawn {grinder.totalSandPieces} pieces with {distanceBetweenPieces} units between them. Color: {colorName}</color>");
+        Debug.Log($"<color=yellow>Cube {cubeTransform.name} attached. Will spawn {grinder.totalSandPieces} pieces every {distanceBetweenPieces / moveSpeed:F2} seconds. Color: {colorName}</color>");
     }
     
     void UpdateGrindingCube(GrindingCube grindingCube)
@@ -289,7 +312,18 @@ public class ConveyorSpline : MonoBehaviour
         int countBefore = activeSandPieces.Count;
         
         Vector3 spawnPos = GetPointOnSplineRaw(splinePosition) + Vector3.up * sandPieceHeightOffset;
-        GameObject sandPiece = Instantiate(sandPiecePrefab, spawnPos, Quaternion.identity);
+        
+        // Get the initial rotation based on spline direction at spawn position
+        Vector3 spawnDirection = GetTangentOnSpline(splinePosition);
+        Quaternion spawnRotation = Quaternion.identity;
+        if (spawnDirection != Vector3.zero)
+        {
+            spawnRotation = Quaternion.LookRotation(spawnDirection, Vector3.up);
+            // Apply rotation offset
+            spawnRotation *= Quaternion.Euler(sandPieceRotationOffset);
+        }
+        
+        GameObject sandPiece = Instantiate(sandPiecePrefab, spawnPos, spawnRotation);
         
         // Verify only ONE object was created
         if (sandPiece == null)
@@ -305,6 +339,9 @@ public class ConveyorSpline : MonoBehaviour
             foreach (MeshRenderer renderer in childRenderers)
             {
                 renderer.material = material;
+                
+                // Disable outline if the material has outline properties
+                DisableOutline(renderer.material);
             }
         }
         
@@ -322,7 +359,9 @@ public class ConveyorSpline : MonoBehaviour
         SandPieceOnSpline pieceData = new SandPieceOnSpline
         {
             pieceTransform = sandPiece.transform,
-            distanceTraveled = spawnDistance
+            distanceTraveled = spawnDistance,
+            isBlocked = false,
+            targetSpeed = moveSpeed
         };
         
         activeSandPieces.Add(pieceData);
@@ -336,7 +375,92 @@ public class ConveyorSpline : MonoBehaviour
             Debug.LogError($"<color=red>ERROR: Expected to add 1 piece, but added {piecesAdded}! Before: {countBefore}, After: {countAfter}</color>");
         }
         
-        Debug.Log($"<color=cyan>[Frame {Time.frameCount}] Created sand piece #{countAfter} from {cubeName} with color '{colorName}'</color>");
+        Debug.Log($"<color=cyan>[Frame {Time.frameCount}] Created sand piece #{countAfter} from {cubeName} with color '{colorName}' facing spline direction</color>");
+    }
+    
+    void TriggerParticleBurst(GrindingCube cube)
+    {
+        if (cube.particleEffect == null) return;
+        
+        // Stop any existing particle coroutine
+        if (cube.particleCoroutine != null)
+        {
+            StopCoroutine(cube.particleCoroutine);
+        }
+        
+        // Start new particle burst
+        cube.particleCoroutine = StartCoroutine(ParticleBurstCoroutine(cube));
+    }
+    
+    System.Collections.IEnumerator ParticleBurstCoroutine(GrindingCube cube)
+    {
+        if (cube.particleEffect != null)
+        {
+            // Enable particle effect
+            cube.particleEffect.SetActive(true);
+            Debug.Log($"<color=cyan>Particle burst started for {cube.cubeTransform.name}</color>");
+            
+            // Wait for 1 second
+            yield return new WaitForSeconds(1f);
+            
+            // Disable particle effect
+            cube.particleEffect.SetActive(false);
+            Debug.Log($"<color=grey>Particle burst ended for {cube.cubeTransform.name}</color>");
+        }
+        
+        // Clear coroutine reference
+        cube.particleCoroutine = null;
+    }
+    
+    void DisableOutline(Material material)
+    {
+        if (material == null) return;
+        
+        // Common outline property names in different shaders
+        string[] outlineProperties = {
+            "_OutlineWidth",
+            "_Outline",
+            "_OutlineColor",
+            "_OutlineSize",
+            "_OutlineThickness",
+            "_EnableOutline",
+            "_UseOutline"
+        };
+        
+        foreach (string property in outlineProperties)
+        {
+            if (material.HasProperty(property))
+            {
+                // Try to disable outline by setting width/size to 0
+                if (property.Contains("Width") || property.Contains("Size") || property.Contains("Thickness"))
+                {
+                    material.SetFloat(property, 0f);
+                    Debug.Log($"Disabled outline property: {property} on material {material.name}");
+                }
+                // Try to disable outline by setting enable flags to false
+                else if (property.Contains("Enable") || property.Contains("Use"))
+                {
+                    material.SetFloat(property, 0f); // 0 = false
+                    Debug.Log($"Disabled outline flag: {property} on material {material.name}");
+                }
+                // Set outline color to transparent
+                else if (property.Contains("Color"))
+                {
+                    material.SetColor(property, Color.clear);
+                    Debug.Log($"Set outline color to transparent: {property} on material {material.name}");
+                }
+            }
+        }
+        
+        // Special handling for Toony Colors Pro shader
+        if (material.shader.name.Contains("Toony") || material.shader.name.Contains("TCP"))
+        {
+            if (material.HasProperty("_TCP2_OUTLINE"))
+            {
+                material.SetFloat("_TCP2_OUTLINE", 0f);
+                Debug.Log("Disabled TCP2 outline on material " + material.name);
+            }
+        }
     }
     
     void SetParticleEffectColor(GameObject particleObject, Color color)
@@ -353,8 +477,89 @@ public class ConveyorSpline : MonoBehaviour
     
     void UpdateSandPieceOnSpline(SandPieceOnSpline pieceData)
     {
-        // Move along the spline at constant speed using distance
-        pieceData.distanceTraveled += moveSpeed * Time.deltaTime;
+        // Fallback method for simple movement without collision detection
+        UpdateSandPieceOnSplineWithCollision(pieceData);
+    }
+    
+    void UpdateSandPiecesWithCollision()
+    {
+        // Clean up null references
+        for (int i = activeSandPieces.Count - 1; i >= 0; i--)
+        {
+            if (activeSandPieces[i].pieceTransform == null)
+            {
+                activeSandPieces.RemoveAt(i);
+            }
+        }
+        
+        if (!enableCollisionDetection)
+        {
+            // Simple update without collision detection
+            foreach (var piece in activeSandPieces)
+            {
+                UpdateSandPieceOnSpline(piece);
+            }
+            return;
+        }
+        
+        // Sort pieces by distance traveled (furthest first)
+        activeSandPieces.Sort((a, b) => b.distanceTraveled.CompareTo(a.distanceTraveled));
+        
+        // Update collision states
+        for (int i = 0; i < activeSandPieces.Count; i++)
+        {
+            SandPieceOnSpline currentPiece = activeSandPieces[i];
+            currentPiece.isBlocked = false;
+            
+            // Check collision with piece ahead (next in sorted list)
+            if (i > 0)
+            {
+                SandPieceOnSpline pieceAhead = activeSandPieces[i - 1];
+                float distanceToAhead = pieceAhead.distanceTraveled - currentPiece.distanceTraveled;
+                
+                // Handle wrapping for closed loops
+                if (closedLoop && distanceToAhead < 0)
+                {
+                    distanceToAhead += cachedSplineLength;
+                }
+                
+                // Check if too close to piece ahead
+                if (distanceToAhead < distanceBetweenPieces)
+                {
+                    currentPiece.isBlocked = true;
+                }
+            }
+            
+            // Set target speed based on blocking state
+            currentPiece.targetSpeed = currentPiece.isBlocked ? 0f : moveSpeed;
+        }
+        
+        // Update piece positions with smooth speed transitions
+        foreach (var piece in activeSandPieces)
+        {
+            UpdateSandPieceOnSplineWithCollision(piece);
+        }
+    }
+    
+    void UpdateSandPieceOnSplineWithCollision(SandPieceOnSpline pieceData)
+    {
+        // Calculate current speed based on blocking state
+        float targetSpeed = pieceData.isBlocked ? 0f : moveSpeed;
+        
+        // Smooth speed transition (FPS independent)
+        float speedTransitionRate = 10f; // How fast speed changes
+        float currentSpeed = Mathf.MoveTowards(pieceData.targetSpeed, targetSpeed, speedTransitionRate * Time.deltaTime);
+        pieceData.targetSpeed = currentSpeed;
+        
+        // Move along the spline at current speed (FPS independent)
+        pieceData.distanceTraveled += currentSpeed * Time.deltaTime;
+        
+        // Handle looping for non-closed splines
+        if (!closedLoop && pieceData.distanceTraveled > cachedSplineLength)
+        {
+            // Reset to start for continuous loop
+            pieceData.distanceTraveled = 0f;
+        }
         
         // Convert distance to t parameter using arc length table
         float t = GetTFromDistance(pieceData.distanceTraveled);
@@ -366,12 +571,67 @@ public class ConveyorSpline : MonoBehaviour
         // Update piece position
         pieceData.pieceTransform.position = targetPos;
         
-        // Rotate piece to face forward along spline
+        // Rotate piece to face forward along spline direction
         Vector3 forward = GetTangentOnSpline(t);
         if (forward != Vector3.zero)
         {
-            pieceData.pieceTransform.rotation = Quaternion.LookRotation(forward);
+            // Ensure the piece faces the direction of movement along the spline
+            Quaternion targetRotation = Quaternion.LookRotation(forward, Vector3.up);
+            
+            // Apply rotation offset
+            targetRotation *= Quaternion.Euler(sandPieceRotationOffset);
+            
+            pieceData.pieceTransform.rotation = targetRotation;
         }
+    }
+    
+    public bool CanSpawnNewPiece(float spawnPosition)
+    {
+        if (!enableCollisionDetection) return true;
+        
+        // Convert spawn position to distance
+        float spawnDistance = spawnPosition * cachedSplineLength;
+        
+        // Check if there's enough space at spawn position
+        foreach (var piece in activeSandPieces)
+        {
+            float distanceToExisting = Mathf.Abs(piece.distanceTraveled - spawnDistance);
+            
+            // Handle wrapping for closed loops
+            if (closedLoop)
+            {
+                float wrappedDistance = cachedSplineLength - distanceToExisting;
+                distanceToExisting = Mathf.Min(distanceToExisting, wrappedDistance);
+            }
+            
+            if (distanceToExisting < distanceBetweenPieces)
+            {
+                return false; // Too close to existing piece
+            }
+        }
+        
+        return true;
+    }
+    
+    public bool IsSplineFull()
+    {
+        if (!enableCollisionDetection) return false;
+        
+        // Calculate maximum pieces that can fit on spline
+        int maxPieces = Mathf.FloorToInt(cachedSplineLength / distanceBetweenPieces);
+        
+        // Consider spline full if we have 90% of max capacity
+        return activeSandPieces.Count >= (maxPieces * 0.9f);
+    }
+    
+    public int GetActivePieceCount()
+    {
+        return activeSandPieces.Count;
+    }
+    
+    public int GetMaxPieceCapacity()
+    {
+        return Mathf.FloorToInt(cachedSplineLength / distanceBetweenPieces);
     }
     
     float FindClosestPointOnSpline(Vector3 worldPoint)
@@ -488,10 +748,37 @@ public class ConveyorSpline : MonoBehaviour
     
     public Vector3 GetTangentOnSpline(float t)
     {
-        float delta = 0.01f;
-        Vector3 p1 = GetPointOnSpline(Mathf.Max(0, t - delta));
-        Vector3 p2 = GetPointOnSpline(Mathf.Min(1, t + delta));
-        return (p2 - p1).normalized;
+        float delta = 0.001f; // Smaller delta for more accurate tangent calculation
+        
+        // Handle edge cases for closed and open splines
+        float t1, t2;
+        
+        if (closedLoop)
+        {
+            // For closed loops, wrap the t values
+            t1 = (t - delta + 1f) % 1f;
+            t2 = (t + delta) % 1f;
+        }
+        else
+        {
+            // For open splines, clamp to valid range
+            t1 = Mathf.Clamp01(t - delta);
+            t2 = Mathf.Clamp01(t + delta);
+        }
+        
+        Vector3 p1 = GetPointOnSpline(t1);
+        Vector3 p2 = GetPointOnSpline(t2);
+        
+        Vector3 tangent = (p2 - p1).normalized;
+        
+        // Ensure we have a valid direction
+        if (tangent == Vector3.zero)
+        {
+            // Fallback: use a larger delta or default forward direction
+            tangent = Vector3.forward;
+        }
+        
+        return tangent;
     }
     
     public float CalculateSplineLength()
@@ -564,6 +851,28 @@ public class ConveyorSpline : MonoBehaviour
                 Gizmos.DrawWireCube(cubePos, Vector3.one * 0.5f);
             }
         }
+        
+        // Draw sand piece collision radii if collision detection is enabled
+        if (enableCollisionDetection && Application.isPlaying)
+        {
+            Gizmos.color = Color.green;
+            foreach (var piece in activeSandPieces)
+            {
+                if (piece.pieceTransform != null)
+                {
+                    Vector3 pos = piece.pieceTransform.position;
+                    Gizmos.DrawWireSphere(pos, sandPieceRadius);
+                    
+                    // Draw different color for blocked pieces
+                    if (piece.isBlocked)
+                    {
+                        Gizmos.color = Color.red;
+                        Gizmos.DrawWireSphere(pos, sandPieceRadius * 0.8f);
+                        Gizmos.color = Color.green;
+                    }
+                }
+            }
+        }
     }
     
     [System.Serializable]
@@ -572,11 +881,11 @@ public class ConveyorSpline : MonoBehaviour
         public Transform cubeTransform;
         public SandCubeGrinder grinder;
         public float splinePosition;
-        public float nextSpawnAtDistance; // The global distance at which to spawn next piece
         public Vector3 fixedPosition; // The collision point where cube stays
         public Material cubeMaterial; // Material to apply to spawned pieces
         public string colorName; // Color name to copy to spawned pieces
-        public GameObject particleEffect; // Active particle effect for this cube
+        public GameObject particleEffect; // Particle effect for this cube
+        public Coroutine particleCoroutine; // Coroutine for timed particle bursts
     }
     
     [System.Serializable]
@@ -584,5 +893,7 @@ public class ConveyorSpline : MonoBehaviour
     {
         public Transform pieceTransform;
         public float distanceTraveled; // Distance traveled along spline in world units
+        public bool isBlocked = false; // Whether this piece is blocked by another piece
+        public float targetSpeed = 0f; // Current target speed (for smooth stopping/starting)
     }
 }

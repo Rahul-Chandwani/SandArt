@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab58bf1126fabfd42bfcbbf01fc82343, type: 3}
+  m_Name: ColorMaterialLibrary 2
+  m_EditorClassIdentifier: 
+  colorMaterials:
+  - colorName: pink
+    material: {fileID: 2100000, guid: b800b1e7e7d46b844801c398a5172ef7, type: 2}
+    color: {r: 0.9960785, g: 0.454902, b: 0.9960785, a: 1}
+  - colorName: Blue
+    material: {fileID: 2100000, guid: 295abbb70fc450f458cfa2433d12d141, type: 2}
+    color: {r: 0.25490198, g: 0.6745098, b: 0.8352942, a: 1}
+  - colorName: Orange
+    material: {fileID: 2100000, guid: d99fb234303497343bd1b08e77d5202c, type: 2}
+    color: {r: 0.96470594, g: 0.45882356, b: 0.19607845, a: 1}

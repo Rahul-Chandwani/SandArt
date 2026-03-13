@@ -29,6 +29,17 @@ public class SpriteRegionEditorTool : MonoBehaviour
         public float shrinkAmount = 0f; // 0 = no shrink, 1 = remove all border
         
         public int PixelCount => pixels.Count;
+        
+        // Constructor to ensure color is properly set
+        public BorderRegion()
+        {
+            color = Color.black;
+        }
+        
+        public BorderRegion(Color initialColor)
+        {
+            color = initialColor;
+        }
     }
     
     [SerializeField]
@@ -95,21 +106,27 @@ public class SpriteRegionEditorTool : MonoBehaviour
                 region.color = Random.ColorHSV();
                 region.regionName = $"Region {regions.Count}";
 
-                // NEW: Sync the dropdown string and the color with the library
-                if (colorLibrary != null && colorLibrary.colorMaterials.Count > 0)
-                {
-                    region.colorName = GetClosestColorName(region.color);
-                    region.color = colorLibrary.GetColorByName(region.colorName);
-                }
-
                 regions.Add(region);
             }
         }
     }
 
+    // Apply fair color distribution if library is available
+    if (colorLibrary != null && colorLibrary.colorMaterials.Count > 0)
+    {
+        List<string> fairColors = GetFairColorDistribution(regions.Count);
+        
+        for (int i = 0; i < regions.Count && i < fairColors.Count; i++)
+        {
+            regions[i].colorName = fairColors[i];
+            regions[i].color = colorLibrary.GetColorByName(fairColors[i]);
+        }
+    }
+
     Debug.Log($"Detected {regions.Count} regions.");
     
-    if (detectBorderRegions)
+    // Only detect border regions if none exist yet, or if explicitly requested
+    if (detectBorderRegions && borderRegions.Count == 0)
     {
         DetectBorderRegions();
     }
@@ -141,6 +158,43 @@ private string GetClosestColorName(Color target)
         }
     }
     return bestMatch;
+}
+
+// Fair color distribution helper
+private List<string> GetFairColorDistribution(int regionCount)
+{
+    if (colorLibrary == null || colorLibrary.colorMaterials.Count == 0) 
+        return new List<string>();
+    
+    string[] availableColors = colorLibrary.GetAllColorNames();
+    List<string> distributedColors = new List<string>();
+    
+    // Calculate how many times each color should appear
+    int colorsPerType = regionCount / availableColors.Length;
+    int remainder = regionCount % availableColors.Length;
+    
+    // Add colors evenly
+    for (int i = 0; i < availableColors.Length; i++)
+    {
+        int timesToAdd = colorsPerType;
+        if (i < remainder) timesToAdd++; // Distribute remainder
+        
+        for (int j = 0; j < timesToAdd; j++)
+        {
+            distributedColors.Add(availableColors[i]);
+        }
+    }
+    
+    // Shuffle the list for random distribution
+    for (int i = 0; i < distributedColors.Count; i++)
+    {
+        string temp = distributedColors[i];
+        int randomIndex = Random.Range(i, distributedColors.Count);
+        distributedColors[i] = distributedColors[randomIndex];
+        distributedColors[randomIndex] = temp;
+    }
+    
+    return distributedColors;
 }
 
     void FloodFill(int startX, int startY, Region region)
@@ -191,6 +245,8 @@ private string GetClosestColorName(Color target)
         foreach (var borderRegion in borderRegions)
         {
             float effectiveShrink = Mathf.Max(borderShrinkAmount, borderRegion.shrinkAmount);
+            
+            Debug.Log($"GeneratePreview() - Border {borderRegion.regionName}: Color = {borderRegion.color}, Shrink = {effectiveShrink}");
             
             if (effectiveShrink > 0f)
             {
@@ -384,6 +440,7 @@ private string GetClosestColorName(Color target)
 
     void OnValidate()
     {
+        // Only regenerate preview, don't re-detect regions/borders
         GeneratePreview();
     }
     
@@ -402,6 +459,15 @@ private string GetClosestColorName(Color target)
             width = sourceTexture.width;
             height = sourceTexture.height;
             sourcePixels = sourceTexture.GetPixels();
+            
+            // Debug: Log border region colors at start
+            Debug.Log($"Start() - Found {borderRegions.Count} border regions:");
+            for (int i = 0; i < borderRegions.Count; i++)
+            {
+                Debug.Log($"Border {i}: {borderRegions[i].regionName} - Color: {borderRegions[i].color}");
+            }
+            
+            // Only generate preview, don't re-detect regions/borders
             GeneratePreview();
         }
     }
@@ -543,8 +609,42 @@ private string GetClosestColorName(Color target)
         Debug.Log($"Expanded regions into borders");
     }
     
+    public void ForceBorderColors()
+    {
+        // Force regenerate preview with current colors
+        GeneratePreview();
+    }
+    
+    public void SaveBorderColors()
+    {
+        // Force serialization by marking the object dirty
+        #if UNITY_EDITOR
+        UnityEditor.EditorUtility.SetDirty(this);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
+        #endif
+        
+        Debug.Log($"Saved {borderRegions.Count} border region colors");
+        for (int i = 0; i < borderRegions.Count; i++)
+        {
+            Debug.Log($"Saved Border {i}: {borderRegions[i].regionName} - Color: {borderRegions[i].color}");
+        }
+    }
+    
+    public void ForceDetectBorderRegions()
+    {
+        DetectBorderRegions();
+        GeneratePreview();
+    }
+    
     void DetectBorderRegions()
     {
+        // Store existing border region colors before clearing
+        Dictionary<string, Color> existingBorderColors = new Dictionary<string, Color>();
+        foreach (var borderRegion in borderRegions)
+        {
+            existingBorderColors[borderRegion.regionName] = borderRegion.color;
+        }
+        
         borderRegions.Clear();
         
         // Create a visited map for border detection
@@ -569,12 +669,23 @@ private string GetClosestColorName(Color target)
                     BorderRegion borderRegion = new BorderRegion();
                     FloodFillBorder(x, y, borderRegion, borderVisited);
                     borderRegion.regionName = $"Border {borderRegions.Count}";
+                    
+                    // Restore previous color if it existed, otherwise use black
+                    if (existingBorderColors.ContainsKey(borderRegion.regionName))
+                    {
+                        borderRegion.color = existingBorderColors[borderRegion.regionName];
+                    }
+                    else
+                    {
+                        borderRegion.color = Color.black; // Default for new borders
+                    }
+                    
                     borderRegions.Add(borderRegion);
                 }
             }
         }
         
-        Debug.Log($"Detected {borderRegions.Count} border regions");
+        Debug.Log($"Detected {borderRegions.Count} border regions (preserved existing colors)");
     }
     
     void FloodFillBorder(int startX, int startY, BorderRegion borderRegion, bool[,] borderVisited)
@@ -677,5 +788,74 @@ private string GetClosestColorName(Color target)
         Debug.Log($"Removed border region {borderIndex} and distributed pixels to adjacent regions");
         
         GeneratePreview();
+    }
+    
+    // Methods for SpriteSequenceManager to check completion status
+    public int GetTotalRegionCount()
+    {
+        return regions.Count;
+    }
+    
+    public int GetFilledRegionCount()
+    {
+        // Get the SandPouringFillEffect component to check actual sand fill progress
+        SandPouringFillEffect fillEffect = GetComponent<SandPouringFillEffect>();
+        if (fillEffect != null)
+        {
+            // Use actual sand fill progress from SandPouringFillEffect
+            return fillEffect.GetCompletelyFilledRegionsCount();
+        }
+        
+        // Fallback: Count regions that have been assigned a color name (from sand pieces)
+        int filledCount = 0;
+        foreach (var region in regions)
+        {
+            // Primary check: region has a color name assigned (this happens when sand pieces fill it)
+            if (!string.IsNullOrEmpty(region.colorName))
+            {
+                filledCount++;
+            }
+            // Secondary check: region color has been changed from default white
+            else if (region.color != Color.white && region.color.a > 0.9f)
+            {
+                // Additional check to ensure it's not just a very light color
+                float colorIntensity = (region.color.r + region.color.g + region.color.b) / 3f;
+                if (colorIntensity < 0.95f) // Not pure white or very close to white
+                {
+                    filledCount++;
+                }
+            }
+        }
+        return filledCount;
+    }
+    
+    public bool IsCompletelyFilled()
+    {
+        // Get the SandPouringFillEffect component to check actual sand fill progress
+        SandPouringFillEffect fillEffect = GetComponent<SandPouringFillEffect>();
+        if (fillEffect != null)
+        {
+            // Use actual sand fill progress from SandPouringFillEffect
+            return fillEffect.IsAllRegionsCompletelyFilled();
+        }
+        
+        // Fallback method
+        return GetTotalRegionCount() > 0 && GetFilledRegionCount() >= GetTotalRegionCount();
+    }
+    
+    public float GetFillProgress()
+    {
+        // Get the SandPouringFillEffect component to check actual sand fill progress
+        SandPouringFillEffect fillEffect = GetComponent<SandPouringFillEffect>();
+        if (fillEffect != null)
+        {
+            // Use actual sand fill progress from SandPouringFillEffect
+            return fillEffect.GetOverallFillProgress();
+        }
+        
+        // Fallback method
+        int total = GetTotalRegionCount();
+        if (total == 0) return 1f; // Consider empty sprite as complete
+        return (float)GetFilledRegionCount() / total;
     }
 }
